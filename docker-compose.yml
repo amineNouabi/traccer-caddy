@@ -28,8 +28,9 @@ services:
       timeout: 5s
       start_period: 1h
       retries: 3
+    expose:
+      - 8082
     ports:
-      - "8082:8082"
       - "5000-5500:5000-5500"
     volumes:
       - /opt/traccar/logs:/opt/traccar/logs
