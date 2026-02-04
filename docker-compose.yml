@@ -1,0 +1,59 @@
+services:
+  database:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TIMESCALEDB_TELEMETRY: ${TIMESCALEDB_TELEMETRY}
+    volumes:
+      - /opt/traccar/data:/var/lib/postgresql/data
+
+  traccar:
+    image: traccar/traccar:latest
+    restart: unless-stopped
+    depends_on:
+      - database
+    environment:
+      CONFIG_USE_ENVIRONMENT_VARIABLES: ${CONFIG_USE_ENVIRONMENT_VARIABLES}
+      DATABASE_DRIVER: ${DATABASE_DRIVER}
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "--spider", "http://localhost:8082/api/health"]
+      interval: 2m
+      timeout: 5s
+      start_period: 1h
+      retries: 3
+    ports:
+      - "8082:8082"
+      - "5000-5500:5000-5500"
+    volumes:
+      - /opt/traccar/logs:/opt/traccar/logs
+
+  autoheal:
+    image: willfarrell/autoheal:latest
+    restart: always
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: ${AUTOHEAL_CONTAINER_LABEL}
+      AUTOHEAL_INTERVAL: ${AUTOHEAL_INTERVAL}
+      AUTOHEAL_START_PERIOD: ${AUTOHEAL_START_PERIOD}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - ./caddy_config:/config
+      - ./caddy_config/Caddyfile:/etc/caddy/Caddyfile
+
+volumes:
+  caddy_data:
